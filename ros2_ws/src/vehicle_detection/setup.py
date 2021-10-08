@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'lane = vehicle_detection.lane:main'
+            'lane = vehicle_detection.run_lane:main',
+            'lane_ctrl = vehicle_detection.run_lane_ctrl:main',
         ],
     },
 )
