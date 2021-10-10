@@ -1,8 +1,10 @@
+import cv2
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from .ImageListener import ImageListener
 from .Controller import Controller
 import math
+from .ImageProcessor import ImageProcessor
 # GUI库
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel
@@ -61,7 +63,32 @@ class App(QWidget):
         self.label.adjustSize()
 
 
-def callback_center(center_x, center_y, width, height, image):
+def callback_image(image):
+    # 显示图片
+    cv2.imshow('camera', image)
+    # hsv处理
+    hsv = ImageProcessor.hsv(image)
+    hsv[0: ImageProcessor.mask_height] = 0
+    cv2.imshow('image_hsv', hsv)
+    
+    # 形态梯度处理
+    morph = ImageProcessor.morph_gradient(image)
+    morph[0: ImageProcessor.mask_height] = 0
+    cv2.imshow('image_morph', morph)
+
+    # 结合
+    both = cv2.bitwise_and(morph, hsv)
+    cv2.imshow('both', both)
+
+    # TODO 不想用hsv，可直接互换注释
+    # center = ImageProcessor.find_center(cv_image, morph)
+    center_x, center_y, width, height, image = ImageProcessor.find_center(image, both)
+
+    cv2.imshow('image_center', image)
+    goto_center(center_x, center_y, width, height)
+
+
+def goto_center(center_x, center_y, width, height):
     global FLAG_AUTO_LANE, threshold_angle
     side_x = 640 / 2 - center_x
     side_y = 360 - center_y
@@ -99,7 +126,7 @@ def main(args = None):
     try:
         rclpy.init(args = args)
 
-        image = ImageListener()
+        image = ImageListener(callback_image)
         controller = Controller()
 
         # 形态梯度参数配置
@@ -111,13 +138,12 @@ def main(args = None):
             ['kernel', 'threshold_low', 'threshold_high']
         )
 
-        image.kernel = kernel.value
-        image.threshold_low = threshold_low.value
-        image.threshold_high = threshold_high.value
-        image.callback_center = callback_center
+        ImageProcessor.kernel = kernel.value
+        ImageProcessor.threshold_low = threshold_low.value
+        ImageProcessor.threshold_high = threshold_high.value
 
         # 遮罩层高度
-        image.mask_height = 240
+        ImageProcessor.mask_height = 240
 
         # HSV参数配置
         image.declare_parameter('threshold_hsv_lower_h', 100)
@@ -131,12 +157,12 @@ def main(args = None):
             ['threshold_hsv_lower_h', 'threshold_hsv_lower_s', 'threshold_hsv_lower_v', 'threshold_hsv_upper_h', 'threshold_hsv_upper_s', 'threshold_hsv_upper_v']
         )
 
-        image.threshold_hsv_lower_h = threshold_hsv_lower_h.value
-        image.threshold_hsv_lower_s = threshold_hsv_lower_s.value
-        image.threshold_hsv_lower_v = threshold_hsv_lower_v.value
-        image.threshold_hsv_upper_h = threshold_hsv_upper_h.value
-        image.threshold_hsv_upper_s = threshold_hsv_upper_s.value
-        image.threshold_hsv_upper_v = threshold_hsv_upper_v.value
+        ImageProcessor.threshold_hsv_lower_h = threshold_hsv_lower_h.value
+        ImageProcessor.threshold_hsv_lower_s = threshold_hsv_lower_s.value
+        ImageProcessor.threshold_hsv_lower_v = threshold_hsv_lower_v.value
+        ImageProcessor.threshold_hsv_upper_h = threshold_hsv_upper_h.value
+        ImageProcessor.threshold_hsv_upper_s = threshold_hsv_upper_s.value
+        ImageProcessor.threshold_hsv_upper_v = threshold_hsv_upper_v.value
 
         # ros参数修改回调
         image.add_on_set_parameters_callback(image.callback)

@@ -1,13 +1,20 @@
+import cv2
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from .ImageListener import ImageListener
+from .ImageProcessor import ImageProcessor
+
+
+def callback_image(image):
+    # 显示图片
+    cv2.imshow('camera', image)
 
 
 def main(args = None):
     try:
         rclpy.init(args = args)
 
-        image = ImageListener()
+        image = ImageListener(callback_image)
 
         # 形态梯度参数配置
         image.declare_parameter('kernel', 10)
@@ -18,9 +25,9 @@ def main(args = None):
             ['kernel', 'threshold_low', 'threshold_high']
         )
 
-        image.kernel = kernel.value
-        image.threshold_low = threshold_low.value
-        image.threshold_high = threshold_high.value
+        ImageProcessor.kernel = kernel.value
+        ImageProcessor.threshold_low = threshold_low.value
+        ImageProcessor.threshold_high = threshold_high.value
 
         # 遮罩层高度
         image.mask_height = 240
@@ -37,12 +44,12 @@ def main(args = None):
             ['threshold_hsv_lower_h', 'threshold_hsv_lower_s', 'threshold_hsv_lower_v', 'threshold_hsv_upper_h', 'threshold_hsv_upper_s', 'threshold_hsv_upper_v']
         )
 
-        image.threshold_hsv_lower_h = threshold_hsv_lower_h.value
-        image.threshold_hsv_lower_s = threshold_hsv_lower_s.value
-        image.threshold_hsv_lower_v = threshold_hsv_lower_v.value
-        image.threshold_hsv_upper_h = threshold_hsv_upper_h.value
-        image.threshold_hsv_upper_s = threshold_hsv_upper_s.value
-        image.threshold_hsv_upper_v = threshold_hsv_upper_v.value
+        ImageProcessor.threshold_hsv_lower_h = threshold_hsv_lower_h.value
+        ImageProcessor.threshold_hsv_lower_s = threshold_hsv_lower_s.value
+        ImageProcessor.threshold_hsv_lower_v = threshold_hsv_lower_v.value
+        ImageProcessor.threshold_hsv_upper_h = threshold_hsv_upper_h.value
+        ImageProcessor.threshold_hsv_upper_s = threshold_hsv_upper_s.value
+        ImageProcessor.threshold_hsv_upper_v = threshold_hsv_upper_v.value
 
         # ros参数修改回调
         image.add_on_set_parameters_callback(image.callback)
