@@ -1,9 +1,9 @@
 .vscode
 
-./ros2_ws/build
-./ros2_ws/install
-./ros2_ws/log
-./ros2_ws/.vscode
-./ros2_ws/images
+ros2_ws/build
+ros2_ws/install
+ros2_ws/log
+ros2_ws/.vscode
+ros2_ws/images
 
 *.DS_Store
