@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'lane = vehicle_detection.run_lane:main',
             'lane_ctrl = vehicle_detection.run_lane_ctrl:main',
+            'traffic_light = vehicle_detection.run_traffic_light:main',
         ],
     },
 )

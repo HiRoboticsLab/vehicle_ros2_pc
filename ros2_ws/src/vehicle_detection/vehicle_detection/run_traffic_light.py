@@ -3,30 +3,43 @@ import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from .ImageListener import ImageListener
 from .ImageProcessor import ImageProcessor
+import requests
 
 
+# 使用前，电脑端需要执行 “pip3 install requests”
 def callback_image(image):
     # 显示图片
     cv2.imshow('camera', image)
-    # hsv处理
-    hsv = ImageProcessor.hsv(image)
-    hsv[0: ImageProcessor.mask_height] = 0
-    cv2.imshow('image_hsv', hsv)
-    
-    # 形态梯度处理
-    morph = ImageProcessor.morph_gradient(image)
-    morph[0: ImageProcessor.mask_height] = 0
-    cv2.imshow('image_morph', morph)
-
-    # 结合
-    both = cv2.bitwise_and(morph, hsv)
-    cv2.imshow('both', both)
-
-    # TODO 不想用hsv，可直接互换注释
-    # center = ImageProcessor.find_center(cv_image, morph)
-    center_x, center_y, width, height, image = ImageProcessor.find_center(image, both)
-
-    cv2.imshow('image_center', image)
+    try:
+        if not (image is None):
+            # result_img = np.copy(image)
+            response = requests.post('http://127.0.0.1:24401/', params={'threshold': 0.1},
+                                     data=bytes(cv2.imencode('.jpg', image)[1])).json()
+            # print(response)
+            if len(response['results']) != 0:
+                # print(response['results'])
+                max_confidence, max_index = 0, 0
+                for index, result in enumerate(response['results']):
+                    # print(result)
+                    confidence = result['confidence']
+                    if confidence > max_confidence:
+                        max_confidence = confidence
+                        max_index = index
+                result = response['results'][max_index]
+                confidence = result['confidence']
+                label = result['label']
+                x = result['location']['left']
+                y = result['location']['top']
+                w = result['location']['width']
+                h = result['location']['height']
+                # 输入参数为图像、左上角坐标、右下角坐标、颜色(B,G,R)数组、粗细
+                image = cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 1)
+                # 输入参数为图像、文本、位置、字体、大小、颜色(B,G,R)数组、粗细
+                image = cv2.putText(image, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                # print(label, confidence, x, y, w, h)
+                cv2.imshow('easydl', image)
+    except Exception as e:
+        print(e)
 
 
 def main(args = None):
@@ -83,6 +96,7 @@ def main(args = None):
             image.destroy_node()
     finally:
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
