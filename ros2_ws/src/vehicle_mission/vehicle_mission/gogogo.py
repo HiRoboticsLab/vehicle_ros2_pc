@@ -10,10 +10,18 @@ from .topic import Light
 # GUI库
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel
+# 线程
+import threading
+# 时间依赖，用于延时
+import time
+# easydl
+from .utils import detect_traffic_light
 
 
 gui = None
 barrier, camera, controller, transform, light = None, None, None, None, None
+image = None
+FLAG_AUTO = True
 
 
 def br_open():
@@ -25,12 +33,77 @@ def br_close():
     barrier.close("2224403829")
 
 def go():
-    light.send()
-    controller.send(0.2, 0)
+    # light.send()
+    # controller.send(0.2, 0)
+    FLAG_AUTO = True
 
 def stop():
-    light.send()
+    # light.send()
     controller.send(0, 0)
+    FLAG_AUTO = False
+
+
+list_point = [[0, 0.2, 90], [1.5, 0.2, 0], []]
+
+# 去某个点
+def toPoint(x, y, angle):
+    cur_x = transform.get_x()
+    cur_y = transform.get_y()
+    cur_angle = transform.get_angle()
+
+    offset_x = cur_x - x
+    offset_y = cur_y - y
+    offset_angle = cur_angle - angle
+
+    speed_linear = 0.2
+    speed_angular = 0
+
+    # 偏航提供转向力
+    if offset_angle > 10:
+        # 这里的正负数自己确定一下
+        speed_angular = 0.2
+    if offset_angle < -10
+        # 这里的正负数自己确定一下
+        speed_angular = -0.2
+
+    # if abs(offset_x) < 0.05 and abs(offset_y) < 0.05
+    # 这里说明达到目的地
+        
+        
+
+mission_flag = 1
+vehicle_camera_image = None
+        
+# 自动驾驶线程
+def auto_drive():
+    global mission_flag, vehicle_camera_image
+    while True:
+        try:
+            if FLAG_AUTO:
+                # 假设开道闸
+                if mission_flag == 0:
+                    # 带入id
+                    barrier.open()
+                    # 睡半秒
+                    time.sleep(0.5)
+                    # 下一个任务
+                    # mission_flag += 1
+                # 假设识别红绿灯
+                if mission_flag == 1:
+                    # 识别码label、和图片长高、以及识别后对图像
+                    label, x, y, w, h, image = detect_traffic_light(vehicle_camera_image)
+                    # 下一个任务
+                    # mission_flag += 1
+                # 假设导航
+                if mission_flag == 2:
+                    # TODO 下面这个函数没有编写完成，目前提供了一个思路
+                    # toPoint(x, y, angle)
+        
+
+        except Exception as e:
+            # traceback.print_exc()
+            print(e)
+
 
 
 class App(QWidget):
@@ -74,13 +147,15 @@ class App(QWidget):
 
 
 def callback_camera(image):
+    global vehicle_camera_image
+    vehicle_camera_image = image
     # 显示图片
-    cv2.imshow('camera', image)
+    cv2.imshow('camera', vehicle_camera_image)
 
 
 def main(args = None):
     global gui
-    global barrier, camera, controller, laser, light
+    global barrier, camera, controller, transform, light
     try:
         rclpy.init(args = args)
 
@@ -102,6 +177,12 @@ def main(args = None):
         app = QApplication(sys.argv)
         gui = App()
         gui.setText("hello world")
+
+        # 自动驾驶线程
+        thread = threading.Thread(target = auto_drive, args = ())
+        # 为了解决程序退出线程不退出的问题
+        thread.setDaemon(True)
+        thread.start()
 
         try:
             executor.spin()
