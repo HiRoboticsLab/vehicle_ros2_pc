@@ -16,67 +16,95 @@ import threading
 import time
 # easydl
 from .utils import detect_traffic_light
+import math
 
 
 gui = None
 barrier, camera, controller, transform, light = None, None, None, None, None
 image = None
-FLAG_AUTO = True
+FLAG_AUTO = False
 
 
 def br_open():
     # 道闸显示屏的id
-    barrier.open("2224403829")
+    barrier.open("989333134")
 
 def br_close():
     # 道闸显示屏的id
-    barrier.close("2224403829")
+    barrier.close("989333134")
 
 def go():
+    global FLAG_AUTO
     # light.send()
     # controller.send(0.2, 0)
     FLAG_AUTO = True
 
 def stop():
+    global FLAG_AUTO
     # light.send()
     controller.send(0, 0)
     FLAG_AUTO = False
 
 
-list_point = [[0, 0.2, 90], [1.5, 0.2, 0], []]
+list_point = [[0.70, 0], [0.70, 1.3], [1.3, 1.3], [1.3, 0]]
+to_angle = 0
+is_arrive = False
+last_send_time = 0
 
 # 去某个点
-def toPoint(x, y, angle):
+def toPoint(x, y):
+    global to_angle, last_send_time, mission_flag
     cur_x = transform.get_x()
     cur_y = transform.get_y()
     cur_angle = transform.get_angle()
 
-    offset_x = cur_x - x
-    offset_y = cur_y - y
-    offset_angle = cur_angle - angle
+    offset_x = x - cur_x
+    offset_y = y - cur_y
+
+    to_angle = math.degrees(math.atan2(offset_y, offset_x))
 
     speed_linear = 0.2
     speed_angular = 0
 
-    # 偏航提供转向力
-    if offset_angle > 10:
-        # 这里的正负数自己确定一下
-        speed_angular = 0.2
-    if offset_angle < -10
-        # 这里的正负数自己确定一下
-        speed_angular = -0.2
+    # 如果去的角度大于现在的角度
+    offset_angle = to_angle - cur_angle
 
-    # if abs(offset_x) < 0.05 and abs(offset_y) < 0.05
-    # 这里说明达到目的地
-        
+    
+    if abs(offset_angle) > 15:
+        if offset_angle > 0:
+            speed_linear = 0
+            speed_angular = 1.5
+        if offset_angle < 0:
+            speed_linear = 0
+            speed_angular = -1.5
+    else:
+        # 偏航提供转向力
+        if abs(offset_angle) > 5:
+            if offset_angle > 0:
+                speed_angular = -0.5
+            if offset_angle < 0:
+                speed_angular = 0.5
+        # 大致走直线算xy
+        else:
+            if abs(offset_x) < 0.10 and abs(offset_y) < 0.10:
+                speed_linear = 0
+                speed_angular = 0
+                controller.send(0, 0)
+                # 切换下一个点
+                mission_flag = 3
+    
+    cur_ms = int(round(time.time() * 1000))
+    if cur_ms - last_send_time > 1000 / 20:
+        controller.send(speed_linear, speed_angular)
+        last_send_time = cur_ms
         
 
-mission_flag = 1
+mission_flag = 2
 vehicle_camera_image = None
         
 # 自动驾驶线程
 def auto_drive():
-    global mission_flag, vehicle_camera_image
+    global mission_flag, vehicle_camera_image, list_point
     while True:
         try:
             if FLAG_AUTO:
@@ -91,14 +119,24 @@ def auto_drive():
                 # 假设识别红绿灯
                 if mission_flag == 1:
                     # 识别码label、和图片长高、以及识别后对图像
-                    label, x, y, w, h, image = detect_traffic_light(vehicle_camera_image)
-                    # 下一个任务
-                    # mission_flag += 1
-                # 假设导航
+                    label, confidence, x, y, w, h, image = detect_traffic_light(vehicle_camera_image)
+                    # 如果是绿灯, 可加入confidence置信度判断
+                    if label == "green":
+                        # 去执行导航
+                        mission_flag = 2
+                # 执行导航
                 if mission_flag == 2:
                     # TODO 下面这个函数没有编写完成，目前提供了一个思路
-                    # toPoint(x, y, angle)
-        
+                    toPoint(list_point[0][0], list_point[0][1])
+                # 切换下一个点
+                if mission_flag == 3:
+                    light.send()
+                    time.sleep(1)
+                    light.send()
+                    time.sleep(1)
+                    del(list_point[0])
+                    if len(list_point) != 0:
+                        mission_flag = 2
 
         except Exception as e:
             # traceback.print_exc()

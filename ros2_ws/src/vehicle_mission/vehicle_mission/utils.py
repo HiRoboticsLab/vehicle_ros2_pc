@@ -34,7 +34,7 @@ def detect_traffic_light(image):
                 image = cv2.putText(image, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 # print(label, confidence, x, y, w, h)
                 # cv2.imshow('traffic_light', image)
-                return label, x, y, w, h, image 
+                return label, confidence, x, y, w, h, image 
     except Exception as e:
         print(e)
 
