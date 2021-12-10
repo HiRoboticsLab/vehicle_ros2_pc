@@ -31,14 +31,16 @@ class Kinematics:
     last_angle = 0
     # pose_x, pose_y, pose_angle = 0, 0, 0
     pose_x, pose_y = 0, 0
-    # 每个脉冲对应的弧度，1350经过智能车2倍频而来
-    tick2rad = (360 / 1350) * math.pi / 180
+    # 每个脉冲对应的弧度
+    tick2rad = 0
 
 
     def __init__(self, param_wheel_distance, param_wheel_diameter, param_wheel_laps_code):
         self.wheel_distance = param_wheel_distance
         self.wheel_diameter = param_wheel_diameter
         self.wheel_laps_code = param_wheel_laps_code
+        # 经过智能车2倍频而来
+        self.tick2rad = (360 / (self.wheel_laps_code * 2)) * math.pi / 180
 
 
     # 正向运动学分析
